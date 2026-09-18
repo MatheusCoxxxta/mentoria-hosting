@@ -1,0 +1,43 @@
+# Cria/atualiza o banco do projeto no Postgres COMPARTILHADO da mentoria.
+# Roda manualmente (Actions > db > Run workflow). O role e o database têm o nome
+# do projeto (fixado pela chave SSH); só a SENHA é definida por você.
+#
+# No app (o deploy.yml já monta isso pra você):
+#   DATABASE_USER=<projeto>  DATABASE_NAME=<projeto>  DATABASE_HOST=db  DATABASE_PORT=5432
+#   DATABASE_PASSWORD=<o mesmo secret DATABASE_PASSWORD>
+#
+# Secrets necessários: VPS_HOST, VPS_SSH_KEY, VPS_KNOWN_HOSTS, DATABASE_PASSWORD
+# Obs.: DATABASE_PASSWORD deve ter 8 a 64 caracteres, só letras e números.
+name: db
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-db
+  cancel-in-progress: false
+
+jobs:
+  db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH
+        env:
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+
+      - name: Provisiona role + database
+        env:
+          VPS: ${{ secrets.VPS_HOST }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        run: |
+          # stdin: primeira linha = senha do banco (a mesma usada pelo app)
+          printf '%s\n' "$DATABASE_PASSWORD" | ssh "deployer@$VPS" db
