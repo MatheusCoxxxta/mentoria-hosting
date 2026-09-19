@@ -46,16 +46,27 @@ robô comenta na issue, aplica `provisionado` e fecha
 ssh-keygen -t ed25519 -f onboarding-ci -N "" -C "onboarding-ci"
 ```
 
-**2. Registre a pública na VPS** — o `setup.sh` aceita como 3º argumento e é
-idempotente:
+**2. Leve a pasta `vps/` e a chave pública para a VPS e rode o `setup.sh`.**
+
+> `vps/` está no `.gitignore` de propósito — os scripts de infra não vão para o
+> repo. Clonar o repo na VPS **não** traz essa pasta; copie da sua máquina.
+
+O `setup.sh` aceita a pública como 3º argumento e é idempotente:
 
 ```bash
-scp onboarding-ci.pub root@SEU-IP:/tmp/
+# na sua máquina, da raiz do repo
+scp -r vps onboarding-ci.pub root@SEU-IP:/root/
+
+# na VPS
 ssh root@SEU-IP
-cd /caminho/do/repo/vps
-sudo ./setup.sh mentoria.sanjacode.space voce@email.com "$(cat /tmp/onboarding-ci.pub)"
-rm /tmp/onboarding-ci.pub
+cd /root/vps
+sudo ./setup.sh mentoria.sanjacode.space voce@email.com "$(cat /root/onboarding-ci.pub)"
+rm /root/onboarding-ci.pub
 ```
+
+Já tinha rodado o `setup.sh` antes? Rode de novo mesmo assim: é o que cria o
+usuário `onboarder`, instala o `mentoria-onboard-gate` e acrescenta a linha do
+sudoers. Nada de projeto existente é tocado.
 
 **3. Secrets no repo da mentoria** (*Settings → Secrets and variables → Actions*):
 
