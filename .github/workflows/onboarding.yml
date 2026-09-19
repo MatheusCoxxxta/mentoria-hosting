@@ -72,8 +72,17 @@ jobs:
         env:
           VPS: ${{ secrets.VPS_HOST }}
         run: |
+          # pipefail é obrigatório: sem ele o `| tee` devolve 0 e a falha do ssh
+          # passa batido — o job segue verde e comenta sucesso na issue.
+          set -o pipefail
+          # BatchMode: sem ele o ssh cai em autenticação por senha e consome as
+          # linhas do payload como se fossem senhas.
           # Sem argumentos: o gate lê projeto e chave do stdin, nessa ordem.
-          ssh "onboarder@$VPS" < "$RUNNER_TEMP/payload.txt" | tee "$RUNNER_TEMP/saida.txt"
+          ssh -T -o BatchMode=yes "onboarder@$VPS" \
+            < "$RUNNER_TEMP/payload.txt" | tee "$RUNNER_TEMP/saida.txt"
+          # Só comentamos sucesso se a VPS confirmou o cadastro.
+          grep -q '^ok:' "$RUNNER_TEMP/saida.txt" \
+            || { echo "::error::a VPS não confirmou o cadastro"; exit 1; }
 
       - name: Comenta e fecha a issue
         env:

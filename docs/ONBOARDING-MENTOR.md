@@ -51,22 +51,42 @@ ssh-keygen -t ed25519 -f onboarding-ci -N "" -C "onboarding-ci"
 > `vps/` está no `.gitignore` de propósito — os scripts de infra não vão para o
 > repo. Clonar o repo na VPS **não** traz essa pasta; copie da sua máquina.
 
-O `setup.sh` aceita a pública como 3º argumento e é idempotente:
+O `setup.sh` aceita a pública como 3º argumento e é idempotente.
+
+> **Copie a pasta `vps/` junto, sempre.** Uma cópia velha na VPS é o erro mais
+> fácil de cometer aqui: o `setup.sh` antigo ignora o 3º argumento **em
+> silêncio**, termina com `ok.` e não cria o `onboarder`. Você só descobre
+> quando a Action falha com `Permission denied (publickey,password)`.
 
 ```bash
-# na sua máquina, da raiz do repo
-scp -r vps onboarding-ci.pub root@SEU-IP:/root/
+# na sua máquina, da raiz do repo — o `vps/.` sobrescreve a cópia da VPS
+scp -r vps/. root@SEU-IP:/root/mentoria-vps/
+scp onboarding-ci.pub root@SEU-IP:/root/
 
 # na VPS
 ssh root@SEU-IP
-cd /root/vps
-sudo ./setup.sh mentoria.sanjacode.space voce@email.com "$(cat /root/onboarding-ci.pub)"
-rm /root/onboarding-ci.pub
+cd /root/mentoria-vps
+sudo ./setup.sh mentoria.SEU-DOMINIO voce@email.com "$(cat /root/onboarding-ci.pub)"
 ```
 
 Já tinha rodado o `setup.sh` antes? Rode de novo mesmo assim: é o que cria o
 usuário `onboarder`, instala o `mentoria-onboard-gate` e acrescenta a linha do
 sudoers. Nada de projeto existente é tocado.
+
+**Confira que pegou.** Se qualquer um destes falhar, a Action não autentica:
+
+```bash
+# a última linha do setup.sh tem que ser "ok. Cadastro de projeto:".
+# Se vier "ok. Próximo:", a VPS ainda está com a versão antiga do script.
+id onboarder
+cat /home/onboarder/.ssh/authorized_keys   # command="...mentoria-onboard-gate",restrict ssh-ed25519 ...
+cat /etc/sudoers.d/mentoria                # 2 linhas: deployer e onboarder
+```
+
+Se o `sshd_config` tiver `AllowUsers`/`AllowGroups`, acrescente `onboarder` e
+rode `systemctl reload sshd` — senão ele é recusado antes de a chave ser olhada.
+
+Deu tudo certo? Aí sim `rm /root/onboarding-ci.pub`.
 
 **3. Secrets no repo da mentoria** (*Settings → Secrets and variables → Actions*):
 
