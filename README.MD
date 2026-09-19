@@ -14,12 +14,14 @@ comandos, trocando o que estiver `ASSIM`.
 ## 0. Antes de começar, você precisa ter
 
 - [ ] Uma conta no **GitHub** e seu projeto num **repositório** lá.
-- [ ] Um **`Dockerfile`** no projeto (o que empacota seu app). Veja o §3.
+- [ ] Um **`Dockerfile`** no projeto (o que empacota seu app). Veja o §4.
 - [ ] Seu app deve **escutar na porta que a variável `PORT` indicar** (ex.: `3000`).
-- [ ] Ter **aberto a issue de cadastro** com o nome do projeto e a sua chave
-      pública, e o mentor ter **aprovado** (§4).
-- [ ] Ter recebido do mentor, **em particular**, o **IP da VPS** (ele não vai na
-      issue, que é pública).
+- [ ] Um **nome para o projeto**: vira o seu subdomínio. Só letras minúsculas,
+      números e hífen, começando por letra (ex.: `meu-app`).
+
+> **Comece pelo §1.** Ele abre a issue de cadastro, que depende do mentor
+> aprovar. Enquanto a aprovação não sai, siga do §2 em diante — quando ela
+> chegar, você já está pronto pro deploy.
 
 Glossário rápido:
 - **Secret**: um valor secreto guardado no GitHub (senha, chave). O GitHub
@@ -31,7 +33,55 @@ Glossário rápido:
 
 ---
 
-## 1. Visão geral dos arquivos que você vai copiar
+## 1. Gere sua chave SSH e peça seu cadastro
+
+**Faça isso primeiro.** O resto do guia você consegue tocar sozinho; esta parte
+depende do mentor aprovar, então quanto antes ela sair, melhor.
+
+A chave SSH é um par de arquivos: uma parte **pública** (você entrega ao mentor)
+e uma **privada** (fica secreta, vai num secret do GitHub). É assim que o GitHub
+prova pra VPS que pode fazer deploy do **seu** projeto — e só dele.
+
+No seu computador (Mac/Linux; no Windows use o Git Bash):
+
+```bash
+ssh-keygen -t ed25519 -f mentoria -N "" -C "SEU-PROJETO"
+```
+
+Isso cria dois arquivos na pasta atual:
+- `mentoria` → chave **privada** (NUNCA compartilhe, não suba no git).
+- `mentoria.pub` → chave **pública** (essa você manda pro mentor).
+
+Veja o conteúdo da **pública**:
+
+```bash
+cat mentoria.pub
+```
+Vai aparecer algo como `ssh-ed25519 AAAAC3Nz... SEU-PROJETO`.
+
+### 1.1 Abra a issue de cadastro
+
+No repositório da mentoria, vá em **Issues → New issue → Novo projeto na VPS**,
+preencha o nome do projeto e cole a linha inteira do `mentoria.pub`.
+
+> **Pode colar a chave pública numa issue?** Pode. Ela é **pública** por
+> definição — serve só para a VPS te reconhecer, não abre nada sozinha. O que
+> **nunca** pode sair do seu computador é o arquivo `mentoria` (sem `.pub`),
+> que começa com `-----BEGIN OPENSSH PRIVATE KEY-----`. Se você colar a privada
+> por engano, ela está queimada: gere outro par e avise o mentor.
+
+O mentor confere e põe a label `aprovado`. A partir daí é automático: em ~1
+minuto um robô comenta na issue confirmando o cadastro, com a tabela de secrets
+do §5 já preenchida com o nome do seu projeto.
+
+O **IP da VPS** não aparece na issue (ela é pública) — peça ao mentor em
+particular. Você vai precisar dele no §5.
+
+**Não fique parado esperando:** siga para o §2 enquanto a aprovação não chega.
+
+---
+
+## 2. Visão geral dos arquivos que você vai copiar
 
 Dentro da pasta `template/` da mentoria tem:
 
@@ -46,7 +96,7 @@ Você copia essa pasta `.github` inteira pra **raiz do seu repositório**.
 
 ---
 
-## 2. Copie os workflows pro seu repositório
+## 3. Copie os workflows pro seu repositório
 
 No seu computador, dentro da pasta do seu projeto:
 
@@ -66,7 +116,7 @@ Ainda **não** dê push — falta configurar (§5 e §6).
 
 ---
 
-## 3. Confira seu Dockerfile
+## 4. Confira seu Dockerfile
 
 Seu app precisa de um `Dockerfile` na raiz (ou na subpasta, se for monorepo).
 Exemplo para Node.js:
@@ -90,47 +140,6 @@ Duas regras que **não** podem faltar:
    ```
 2. **Não precisa expor porta pública nem configurar HTTPS.** O proxy da VPS
    (Traefik) cuida disso. Seu app só escuta numa porta alta (>1024, ex.: 3000).
-
----
-
-## 4. Gere sua chave SSH (o “crachá” do deploy)
-
-A chave SSH é um par de arquivos: uma parte **pública** (você entrega ao mentor)
-e uma **privada** (fica secreta, vai num secret do GitHub). É assim que o GitHub
-prova pra VPS que pode fazer deploy do **seu** projeto — e só dele.
-
-No seu computador (Mac/Linux; no Windows use o Git Bash):
-
-```bash
-ssh-keygen -t ed25519 -f mentoria -N "" -C "SEU-PROJETO"
-```
-
-Isso cria dois arquivos na pasta atual:
-- `mentoria` → chave **privada** (NUNCA compartilhe, não suba no git).
-- `mentoria.pub` → chave **pública** (essa você manda pro mentor).
-
-Veja o conteúdo da **pública**:
-
-```bash
-cat mentoria.pub
-```
-Vai aparecer algo como `ssh-ed25519 AAAAC3Nz... SEU-PROJETO`.
-
-### 4.1 Abra a issue de cadastro
-
-No repositório da mentoria, vá em **Issues → New issue → Novo projeto na VPS**,
-preencha o nome do projeto e cole a linha inteira do `mentoria.pub`.
-
-> **Pode colar a chave pública numa issue?** Pode. Ela é **pública** por
-> definição — serve só para a VPS te reconhecer, não abre nada sozinha. O que
-> **nunca** pode sair do seu computador é o arquivo `mentoria` (sem `.pub`),
-> que começa com `-----BEGIN OPENSSH PRIVATE KEY-----`. Se você colar a privada
-> por engano, ela está queimada: gere outro par e avise o mentor.
-
-O mentor confere e põe a label `aprovado`. A partir daí é automático: em ~1
-minuto um robô comenta na issue confirmando o cadastro, com a tabela de secrets
-do §5 já preenchida com o nome do seu projeto. O **IP da VPS** não aparece na
-issue (ela é pública) — peça ao mentor em particular.
 
 ---
 
@@ -163,7 +172,8 @@ Copie a linha que sair (começa com o IP e `ssh-ed25519 ...`) e cole no secret.
 
 > **Importante:**
 > - `VPS_SSH_KEY` é a chave **privada** — vai **só** no secret, nunca no git.
-> - Se você recriar a chave, atualize o secret e reenvie a `.pub` pro mentor.
+> - Se você recriar a chave, atualize o secret e avise o mentor na sua issue de
+>   cadastro — a chave antiga precisa ser trocada na VPS.
 > - Se o mentor reinstalar a VPS, o `VPS_KNOWN_HOSTS` muda — rode o `ssh-keyscan`
 >   de novo e atualize o secret.
 
@@ -289,10 +299,10 @@ Para ver o log, use o workflow **ops** com o comando **logs** (§9).
 
 ## 11. Checklist final
 
+- [ ] Chave SSH gerada; `.pub` enviada na **issue de cadastro** e o robô já
+      comentou ✅ confirmando o projeto (§1.1).
 - [ ] `Dockerfile` ok e app escuta em `process.env.PORT`.
 - [ ] `.github/workflows/` com os 3 arquivos no repo.
-- [ ] Chave SSH gerada; `.pub` enviada na **issue de cadastro** e o robô já
-      comentou ✅ confirmando o projeto (§4.1).
 - [ ] Secrets: `VPS_HOST`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` (+ `DATABASE_USER`, `DATABASE_NAME`, `DATABASE_PASSWORD` se usa banco).
 - [ ] `DATABASE_USER` e `DATABASE_NAME` = **nome do projeto** (igual ao subdomínio).
 - [ ] `PORT` ajustado no `deploy.yml`.
