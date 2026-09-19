@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Dúvida sobre deploy / erro no Actions
+    url: https://github.com/sanjacode/mentoria-hosting/discussions
+    about: Para problemas de deploy, use Discussions. Issues aqui são só cadastro de projeto.

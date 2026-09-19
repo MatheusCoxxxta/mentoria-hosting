@@ -16,10 +16,10 @@ comandos, trocando o que estiver `ASSIM`.
 - [ ] Uma conta no **GitHub** e seu projeto num **repositório** lá.
 - [ ] Um **`Dockerfile`** no projeto (o que empacota seu app). Veja o §3.
 - [ ] Seu app deve **escutar na porta que a variável `PORT` indicar** (ex.: `3000`).
-- [ ] Ter recebido do **mentor**:
-  - o **nome do seu projeto** (vira o subdomínio). Ex.: `bankacc`.
-  - o **endereço da VPS** (um IP). Ex.: `10.00.198.00`.
-- [ ] Ter enviado ao mentor a sua **chave pública** (você gera no §4).
+- [ ] Ter **aberto a issue de cadastro** com o nome do projeto e a sua chave
+      pública, e o mentor ter **aprovado** (§4).
+- [ ] Ter recebido do mentor, **em particular**, o **IP da VPS** (ele não vai na
+      issue, que é pública).
 
 Glossário rápido:
 - **Secret**: um valor secreto guardado no GitHub (senha, chave). O GitHub
@@ -109,13 +109,28 @@ Isso cria dois arquivos na pasta atual:
 - `mentoria` → chave **privada** (NUNCA compartilhe, não suba no git).
 - `mentoria.pub` → chave **pública** (essa você manda pro mentor).
 
-Veja o conteúdo da pública e mande pro mentor (WhatsApp/Discord/etc.):
+Veja o conteúdo da **pública**:
 
 ```bash
 cat mentoria.pub
 ```
-Vai aparecer algo como `ssh-ed25519 AAAAC3Nz... SEU-PROJETO`. **O mentor cadastra
-essa chave na VPS** e te confirma que seu projeto foi criado.
+Vai aparecer algo como `ssh-ed25519 AAAAC3Nz... SEU-PROJETO`.
+
+### 4.1 Abra a issue de cadastro
+
+No repositório da mentoria, vá em **Issues → New issue → Novo projeto na VPS**,
+preencha o nome do projeto e cole a linha inteira do `mentoria.pub`.
+
+> **Pode colar a chave pública numa issue?** Pode. Ela é **pública** por
+> definição — serve só para a VPS te reconhecer, não abre nada sozinha. O que
+> **nunca** pode sair do seu computador é o arquivo `mentoria` (sem `.pub`),
+> que começa com `-----BEGIN OPENSSH PRIVATE KEY-----`. Se você colar a privada
+> por engano, ela está queimada: gere outro par e avise o mentor.
+
+O mentor confere e põe a label `aprovado`. A partir daí é automático: em ~1
+minuto um robô comenta na issue confirmando o cadastro, com a tabela de secrets
+do §5 já preenchida com o nome do seu projeto. O **IP da VPS** não aparece na
+issue (ela é pública) — peça ao mentor em particular.
 
 ---
 
@@ -127,10 +142,10 @@ banco só se o seu app usa Postgres):
 
 | Nome do secret       | O que é / onde conseguir |
 |----------------------|--------------------------|
-| `VPS_HOST`           | O IP da VPS que o mentor te passou. Ex.: `45.32.175.10` |
+| `VPS_HOST`           | O IP da VPS que o mentor te passou em particular |
 | `VPS_SSH_KEY`        | A **chave privada** inteira. Rode `cat mentoria` e cole **tudo**, incluindo as linhas `-----BEGIN OPENSSH PRIVATE KEY-----` e `-----END OPENSSH PRIVATE KEY-----` |
 | `VPS_KNOWN_HOSTS`    | A “identidade” da VPS (evita ataque de impostor). Rode o comando abaixo e cole a linha inteira |
-| `DATABASE_USER`      | **O nome do seu projeto** (o mesmo do subdomínio, ex.: `bankacc`). O banco usa esse nome. |
+| `DATABASE_USER`      | **O nome do seu projeto** (o mesmo do subdomínio, ex.: `meu-app`). O banco usa esse nome. |
 | `DATABASE_NAME`      | **O nome do seu projeto** também — igual ao `DATABASE_USER`. |
 | `DATABASE_PASSWORD`  | A senha do **seu** banco. **Você inventa.** Só letras e números, 8 a 64 caracteres (ex.: `Mentoria2026abc`). Guarde-a. |
 
@@ -139,10 +154,10 @@ banco só se o seu app usa Postgres):
 > um database com o **nome do seu projeto**. Então esses dois secrets têm que ser
 > exatamente esse nome — senão o app tenta um banco que não existe.
 
-Comando para o `VPS_KNOWN_HOSTS` (troque o IP se for outro):
+Comando para o `VPS_KNOWN_HOSTS` (troque `IP-DA-VPS` pelo que o mentor te passou):
 
 ```bash
-ssh-keyscan -t ed25519 45.32.175.10
+ssh-keyscan -t ed25519 IP-DA-VPS
 ```
 Copie a linha que sair (começa com o IP e `ssh-ed25519 ...`) e cole no secret.
 
@@ -276,7 +291,8 @@ Para ver o log, use o workflow **ops** com o comando **logs** (§9).
 
 - [ ] `Dockerfile` ok e app escuta em `process.env.PORT`.
 - [ ] `.github/workflows/` com os 3 arquivos no repo.
-- [ ] Chave SSH gerada; `.pub` enviada e **confirmada** pelo mentor.
+- [ ] Chave SSH gerada; `.pub` enviada na **issue de cadastro** e o robô já
+      comentou ✅ confirmando o projeto (§4.1).
 - [ ] Secrets: `VPS_HOST`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` (+ `DATABASE_USER`, `DATABASE_NAME`, `DATABASE_PASSWORD` se usa banco).
 - [ ] `DATABASE_USER` e `DATABASE_NAME` = **nome do projeto** (igual ao subdomínio).
 - [ ] `PORT` ajustado no `deploy.yml`.

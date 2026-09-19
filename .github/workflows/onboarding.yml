@@ -1,0 +1,137 @@
+# Onboarding de projeto na VPS a partir de uma issue do formulário "Novo projeto".
+#
+# Gatilho: o MENTOR põe a label `aprovado` na issue. O GitHub só permite aplicar
+# labels a quem tem permissão triage/write no repo, então o autor da issue não
+# consegue se auto-aprovar — a label É o controle de acesso.
+#
+# Segurança:
+#  - o corpo da issue (texto hostil) nunca entra num `run:` interpolado com
+#    ${{ }}; vai por env e é validado em .github/scripts/parse-issue.py;
+#  - a chave SSH usada aqui (VPS_ONBOARD_KEY) cai num forced command na VPS
+#    (usuário `onboarder` -> mentoria-onboard-gate), que só sabe cadastrar
+#    projeto. Vazou a chave, ninguém ganha shell.
+#
+# Secrets necessários no repo do mentor:
+#   VPS_HOST, VPS_ONBOARD_KEY, VPS_KNOWN_HOSTS
+# Variável opcional (Settings -> Variables): MENTORES = "fulano,ciclana"
+name: onboarding
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: vps-onboarding
+  cancel-in-progress: false
+
+jobs:
+  provisionar:
+    if: github.event.label.name == 'aprovado'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Confere quem aprovou
+        env:
+          QUEM: ${{ github.event.sender.login }}
+          MENTORES: ${{ vars.MENTORES }}
+        run: |
+          # Aplicar label já exige permissão no repo. Se MENTORES estiver
+          # definida, restringe ainda mais (defesa em profundidade).
+          if [ -z "${MENTORES}" ]; then
+            echo "MENTORES não definida; confiando na permissão de label. Aprovador: $QUEM"
+            exit 0
+          fi
+          case ",${MENTORES// /}," in
+            *",$QUEM,"*) echo "aprovador autorizado: $QUEM" ;;
+            *) echo "::error::'$QUEM' não está em MENTORES"; exit 1 ;;
+          esac
+
+      - name: Valida os dados da issue
+        id: parse
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: python3 .github/scripts/parse-issue.py "$RUNNER_TEMP/payload.txt"
+
+      - name: SSH
+        env:
+          KEY: ${{ secrets.VPS_ONBOARD_KEY }}
+          KNOWN: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+
+      - name: Cadastra o projeto na VPS
+        id: cadastro
+        env:
+          VPS: ${{ secrets.VPS_HOST }}
+        run: |
+          # Sem argumentos: o gate lê projeto e chave do stdin, nessa ordem.
+          ssh "onboarder@$VPS" < "$RUNNER_TEMP/payload.txt" | tee "$RUNNER_TEMP/saida.txt"
+
+      - name: Comenta e fecha a issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          PROJETO: ${{ steps.parse.outputs.projeto }}
+          GUIA: ${{ github.server_url }}/${{ github.repository }}/blob/main/README.MD
+        run: |
+          gh label create provisionado --color 0E8A16 --description "Projeto cadastrado na VPS" 2>/dev/null || true
+          cat > /tmp/comentario.md <<EOF
+          ✅ **Projeto \`$PROJETO\` cadastrado na VPS.**
+
+          Sua URL (depois do primeiro deploy):
+          \`https://$PROJETO.mentoria.sanjacode.space\`
+
+          ### Próximos passos (guia completo: [README]($GUIA))
+
+          1. Copie \`template/.github/workflows/\` para a raiz do seu repositório.
+          2. Cadastre os secrets em **Settings → Secrets and variables → Actions**:
+
+          | Secret | Valor |
+          |---|---|
+          | \`VPS_HOST\` | o IP que o mentor te passa em particular |
+          | \`VPS_SSH_KEY\` | conteúdo de \`cat mentoria\` (a chave **privada**, inteira) |
+          | \`VPS_KNOWN_HOSTS\` | saída de \`ssh-keyscan -t ed25519 <IP-DA-VPS>\` |
+          | \`DATABASE_USER\` | \`$PROJETO\` |
+          | \`DATABASE_NAME\` | \`$PROJETO\` |
+          | \`DATABASE_PASSWORD\` | você inventa: 8–64 caracteres alfanuméricos |
+
+          3. Ajuste \`PORT\` no \`deploy.yml\` para a porta que o seu app escuta.
+          4. Usa banco? Rode o workflow **db** uma vez (Actions → db → Run workflow).
+          5. \`git push origin main\` → acompanhe em **Actions**.
+
+          Travou? Comente aqui com o print do log do Actions.
+          EOF
+          gh issue comment "$ISSUE" --body-file /tmp/comentario.md
+          gh issue edit "$ISSUE" --add-label provisionado --remove-label aprovado
+          gh issue close "$ISSUE" --reason completed
+
+      - name: Falhou — avisa na issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          ERRO: ${{ steps.parse.outputs.erro }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create invalido --color D93F0B --description "Dados da issue precisam de correção" 2>/dev/null || true
+          {
+            echo "❌ **Não consegui cadastrar o projeto.**"
+            echo
+            if [ -n "$ERRO" ]; then
+              echo "Motivo: $ERRO"
+              echo
+              echo "Corrija o corpo da issue (botão **⋯ → Edit**) e peça ao mentor para reaplicar a label \`aprovado\`."
+            else
+              echo "Falha na etapa de cadastro na VPS. O mentor vai olhar o log: $RUN_URL"
+            fi
+          } > /tmp/erro.md
+          gh issue comment "$ISSUE" --body-file /tmp/erro.md
+          gh issue edit "$ISSUE" --add-label invalido --remove-label aprovado

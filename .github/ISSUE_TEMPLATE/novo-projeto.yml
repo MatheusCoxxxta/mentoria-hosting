@@ -1,0 +1,56 @@
+name: "Novo projeto na VPS"
+description: "Peça o cadastro do seu projeto (subdomínio + chave de deploy) na VPS da mentoria."
+title: "[projeto] "
+labels: ["novo-projeto"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Preencha os dois campos abaixo. O mentor confere e aprova — o cadastro
+        na VPS é automático a partir da aprovação.
+
+        **Sua chave PÚBLICA (`mentoria.pub`) pode ser colada aqui sem medo:**
+        ela é pública por definição, é só um identificador. O que NUNCA pode
+        aparecer aqui é o arquivo `mentoria` (sem `.pub`), a chave **privada**,
+        que começa com `-----BEGIN OPENSSH PRIVATE KEY-----`.
+
+  - type: input
+    id: projeto
+    attributes:
+      label: Nome do projeto
+      description: >-
+        Vira o seu subdomínio (`https://NOME.mentoria.sanjacode.space`) e também
+        o nome do seu usuário/banco no Postgres. Só letras minúsculas, números e
+        hífen; começa com letra; até 30 caracteres.
+      placeholder: meu-app
+    validations:
+      required: true
+
+  - type: textarea
+    id: chave
+    attributes:
+      label: Chave pública SSH (ed25519)
+      description: >-
+        Gere com `ssh-keygen -t ed25519 -f mentoria -N "" -C "SEU-PROJETO"` e
+        cole aqui a saída de `cat mentoria.pub` (uma linha só).
+      placeholder: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... meu-app"
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: repo
+    attributes:
+      label: Repositório do projeto (opcional)
+      description: URL do repo no GitHub que vai fazer o deploy.
+      placeholder: https://github.com/fulano/meu-app
+
+  - type: checkboxes
+    id: confirmacoes
+    attributes:
+      label: Confirmações
+      options:
+        - label: "Colei a chave **pública** (`mentoria.pub`), não a privada."
+          required: true
+        - label: "Meu projeto tem `Dockerfile` e o app escuta na porta da variável `PORT`."
+          required: true
